@@ -1,0 +1,69 @@
+---
+title: "Suplementary Materials"
+author: "Rumen Iliev"
+date: "7/14/2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=TRUE, echo = FALSE, warning = FALSE, results='hide', message=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(htmlTable)
+library(magrittr)
+library(kableExtra) # https://haozhu233.github.io/kableExtra/awesome_table_in_html.html
+
+
+data_folder <- "~/Desktop/"
+
+table_sm1 <- read.csv(paste0(data_folder, "table_sm1.csv"))
+table_sm2 <- read.csv(paste0(data_folder, "table_sm2.csv"))
+table_sm3 <- read.csv(paste0(data_folder, "table_sm3.csv"))
+table_sm4 <- read.csv(paste0(data_folder, "table_sm4.csv"))
+```
+```{css, echo=FALSE}
+
+ h1, h2, h3 {
+  text-align: center;
+}
+
+```
+
+
+## Data Collection and Data Sharing  
+The data from the four studies analyzed in this paper are a part of a larger data collection effort which was aimed at developing novel machine learning methods for modeling individual differences. The full datasets include experimental manipulations, demographic variables and various psychological scales. Here we share only the portion of the data which is relevant to this paper, and we do not include individual-level data.
+The self:other choices and the "not close EV" choices from Study 1 are included in the shared data since they were part of the sequence of lotteries and not individual level data. However they are not analyzed in the paper since these lotteries were still focused on individual differences, which is beyond the current scope.
+
+## Data and Script Availability
+
+The data and the computer code for running the statistical analyses and generating the graphs can be found [here](https://osf.io/kr8pa/)
+
+
+## Study 1  
+```{r}
+#htmlTable(table_sm1)
+table_sm1 %>% kbl() %>%  kable_classic(full_width = F, html_font = "Cambria")
+#kable_paper("hover", full_width = F)
+#kable_styling()
+```
+## Study 2  
+
+```{r}
+table_sm2 %>% kbl() %>%  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+## Study 3  
+
+```{r}
+table_sm3 %>% kbl() %>%  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+## Study 4  
+
+```{r}
+table_sm4 %>% kbl() %>%  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+

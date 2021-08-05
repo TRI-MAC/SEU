@@ -1,0 +1,469 @@
+---
+title: "SEU_paper_anlyses"
+output: html_document
+---
+
+## Settings
+```{r, eval = TRUE, echo = FALSE, warning = FALSE}
+# load libraries
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(qualtRics)
+library(googlesheets4)
+library(googledrive)
+library(plotly)
+library(ggpubr)
+library(ggsignif)
+library(metR)
+# setting
+stringsAsFactors = FALSE
+
+util_path <- "~/repos/mac_projects/beh_sc/studies/prosociality/util.R"
+source(util_path)
+```
+
+# read data
+```{r, eval = TRUE, echo = FALSE, warning = FALSE}
+
+data_folder <- "~/Desktop/"
+
+study1_df <- read.csv(paste0(data_folder, "study1.csv"))
+study2_df <- read.csv(paste0(data_folder, "study2.csv"))
+study3_df <- read.csv(paste0(data_folder, "study3.csv"))
+study4_df <- read.csv(paste0(data_folder, "study4.csv"))
+
+
+length(unique(study1_df$id))
+length(unique(study2_df$id))
+length(unique(study3_df$id))
+length(unique(study4_df$id))
+
+
+tbls <- readRDS(file = paste0(data_folder, "tbls_1.Rds"))
+
+
+
+```
+
+# Study 1
+
+```{r}
+
+# overall 
+lme4::glmer(uncertain_choice ~ recipient.1*gains  + (1|id) + (1|question_type), data = study1_df %>% filter(recipient.1 == recipient.2, close_EV == "close"), family = "binomial") %>% summary()
+
+# post-hoc gains
+lme4::glmer(uncertain_choice ~ recipient.1  + (1|id) + (1|question_type), data = study1_df %>% filter(recipient.1 == recipient.2,gains == 1, close_EV == "close"), family = "binomial") %>% summary()
+# post-hoc losses
+lme4::glmer(uncertain_choice ~ recipient.1  + (1|id) + (1|question_type), data = study1_df %>% filter(recipient.1 == recipient.2,gains == 0, close_EV == "close"), family = "binomial") %>% summary()
+
+
+
+x <- study1_df %>% filter(recipient.1 == recipient.2, close_EV == "close") %>%
+  group_by(recipient.1, gains) %>%
+  summarise(uncertain_choice_m = mean(uncertain_choice, na.rm = TRUE),
+            uncertain_choice_sd = mean(uncertain_choice, na.rm = TRUE)) %>%
+  mutate(uncertain_choice_se = uncertain_choice_sd/sqrt(length(unique(study1_df$id)))) 
+x$gains <- ifelse(x$gains == 0, "Losses", "Gains")
+
+x$sign_star <- c("", "", "**", "***")
+# p-vallues are 0.00796 and 1.32e-09
+
+fig4 <- x %>% ggplot(aes(y = uncertain_choice_m, x =  gains, fill = recipient.1, label = sign_star)) +
+  geom_bar(stat = "identity", position = "dodge", color="black") + 
+  geom_errorbar(aes(ymin=uncertain_choice_m-uncertain_choice_se, ymax=uncertain_choice_m+uncertain_choice_se), width=.2,
+                 position=position_dodge(.9)) +
+  labs(title="", x="Domain", y = "Proportion Risky Choices", fill = "Recipient") +
+  theme_classic() +
+    geom_text(size = 5, hjust=0.7, vjust=-0.9) +
+  scale_fill_manual(values=c('#999999','#E69F00')) 
+
+ggsave("~/Desktop/fig4.png", width = 4, height = 4)
+
+
+```
+
+# Study 2
+
+```{r}
+
+
+
+
+x <- study2_df %>%
+  group_by(recipient, question_index_group) %>%
+  summarise(uncertain_choice_m = mean(uncertain_choice, na.rm = TRUE),
+            uncertain_choice_sd = mean(uncertain_choice, na.rm = TRUE)) %>%
+  mutate(uncertain_choice_se = uncertain_choice_sd/sqrt(length(unique(study2_df$id)))) %>%
+  filter(!is.na(recipient))
+
+gg1 <- x %>% ggplot(aes(y = uncertain_choice_m, x =  question_index_group, fill = recipient)) +
+  geom_bar(stat = "identity", position = "dodge", color="black") + 
+  geom_errorbar(aes(ymin=uncertain_choice_m-uncertain_choice_se, ymax=uncertain_choice_m+uncertain_choice_se), width=.2,
+                 position=position_dodge(.9)) +
+  #facet_wrap(~question)+
+  labs(title="Risk preference as a function of pro-sociality and recipient", x="Pro-sociality", y = "Proportion Risky Choices", fill = "Recipient") +
+  theme_classic() +
+  scale_fill_manual(values=c('#999999','#E69F00'))
+
+
+# Test CLT
+study2_df$choice_1 <- 2 - study2_df$choice
+lme4::glmer(choice_1 ~ recipient*better_due_to*better_option + (1|id) + (1|question_index_type), data = study2_df %>% filter(question_index_group %in% c(1,2,3,4)), family = "binomial") %>% summary()
+
+x <- study2_df %>%  filter(question_index_group %in% c(1,2,3,4)) %>%
+  group_by(better_due_to, better_option, recipient) %>%
+  summarise(choice_m = mean(choice_1, na.rm = TRUE),
+            choice_sd = sd(choice_1, na.rm = TRUE))  %>%
+  filter(!is.na(recipient)) %>% 
+  mutate(choice_se = choice_sd / sqrt(length(unique(study2_df$id))))
+
+
+
+fig5 <- x %>% ggplot(aes(y = choice_m,  x = better_option, fill = recipient)) +
+  geom_bar(stat = "identity", position = "dodge") +
+    geom_errorbar(aes(ymin=choice_m-choice_se, ymax=choice_m+choice_se), width=.2,
+                 position=position_dodge(.9)) +
+  labs(title=element_blank(), x="Better Option", y = "Proportion Option 1 Choices", fill = "Recipient") +
+  facet_grid(~better_due_to) +
+  theme_classic() +
+  scale_fill_manual(values=c('#999999','#E69F00'))
+ggsave("~/Desktop/fig5.png", width = 5, height = 5)
+
+
+
+# Test H1 on level of questions
+x <- study2_df %>%  #filter(question_index_group %in% c(1,2,3,4)) %>%
+  group_by(question_index_group, question_index_type, recipient) %>%
+  summarise(choice_m = mean(choice_1, na.rm = TRUE),
+            choice_sd = sd(choice_1, na.rm = TRUE))  %>%
+  filter(!is.na(recipient)) %>% 
+  mutate(choice_se = choice_sd / sqrt(length(unique(study2_df$id))))
+
+x$distance_to_indiff <- (x$choice_m - 0.5) %>% abs()
+
+
+
+t.test(x$distance_to_indiff[x$question_index_group <5] ~ x$recipient[x$question_index_group <5], paired = TRUE)
+
+
+x %>% filter(question_index_group <5) %>% 
+  group_by(recipient) %>%
+  summarise(distance_to_indiff_m = mean(distance_to_indiff),
+            distance_to_indiff_sd = sd(distance_to_indiff))
+
+
+
+# Test H1 for base choices, if necessary
+lme4::glmer(uncertain_choice ~ recipient  + (1|id) + (1|question_index_type) , data = study2_df %>% filter(question_index_group == 0), family = "binomial") %>% summary()
+
+
+```
+
+
+# Study 3
+
+```{r}
+#### Analysis and Graphs #########
+
+
+
+
+# Test H4
+lmerTest::lmer(choice_dev ~ recipient + (1|id) + (1|question), data = study3_df %>% filter(question_index_group < 5)) %>% summary()
+
+
+#filter(question_index_group < 5, attn_check ==1)
+study3_df %>% filter(question_index_group < 5) %>%
+  group_by(recipient) %>%
+  summarise(choice_dev_m = mean(choice_dev, na.rm = TRUE),
+            choice_dev_sd = sd(choice_dev, na.rm = TRUE))
+
+
+
+
+
+```
+
+
+# Study 4
+
+```{r}
+
+# Test H5
+lme4::glmer(uncertain_choice ~ recipient*assymetry_factor + (1|id) + (1|question_index),  data = study4_df, family = "binomial" ) %>% summary()
+
+# H5 post-hoc tests
+lme4::glmer(uncertain_choice ~ recipient + (1|id) + (1|question_index),  data = study4_df %>% filter(assymetry_factor == 0.5), family = "binomial" ) %>% summary()
+lme4::glmer(uncertain_choice ~ recipient + (1|id) + (1|question_index),  data = study4_df %>% filter(assymetry_factor == 1.5), family = "binomial" ) %>% summary()
+
+# repeated t-test
+
+
+
+x <- study4_df %>% group_by(recipient, assymetry_factor) %>%
+  summarise(uncertain_choice_m = mean(uncertain_choice, na.rm = TRUE),
+            uncertain_choice_sd = sd(uncertain_choice, na.rm = TRUE)) %>%
+  filter(!is.na(assymetry_factor)) %>%
+  mutate(uncertain_choice_se = uncertain_choice_sd / sqrt(length(unique(study4_df$id))))
+
+x$sign_star <- c("","","**","*")
+
+fig6 <- ggplot(data = x, aes(x = as.factor(assymetry_factor), y = uncertain_choice_m, fill = recipient, label = sign_star)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+    geom_errorbar(aes(ymin=uncertain_choice_m-uncertain_choice_se, ymax=uncertain_choice_m+uncertain_choice_se), width=.2,
+                 position=position_dodge(.9)) +
+  labs(title="", x="Asymmetry Factor", y = "Preference for Riskier Option", fill = "Recipient") +
+  theme_classic() +
+  geom_text(size = 5, hjust=0.7, vjust=-.5) +
+  scale_fill_manual(values=c('#999999','#E69F00'))
+
+
+ggsave("~/Desktop/fig6.png", width = 5, height = 5)
+
+
+```
+
+
+# Simulations
+```{r}
+buff_df <- expand.grid(
+  x2 = seq(10, 300, by = 1),
+  p2 = seq(1,.1, by = -.01),
+  gamma = c(.5, .7, 1),
+  alpha = c(.5, .7, 1),
+  beta = c(2,4)
+)
+buff_df$x1 <- 10
+buff_df$p1 <- 1
+
+buff_df$y <- P_luce_vect(x1 = buff_df$x1,
+                     p1 = buff_df$p1,
+                     x2 = buff_df$x2,
+                     p2 = buff_df$p2,
+                     alpha = buff_df$alpha,
+                     beta = buff_df$beta,
+                     gamma = buff_df$gamma)
+buff_casted <- buff_df %>% dcast(x2 + p2 ~ alpha + beta + gamma, value.var = "y")
+
+
+buff_df$y_raw <-  buff_df$y
+
+
+
+dichotomize <- function(x) {ifelse(x>0,1,0)}
+
+buff_casted$gamma_effect <-  (buff_casted$`0.5_4_0.7` - buff_casted$`0.5_4_0.5`) # %>% dichotomize()
+buff_casted$beta_effect <-  (buff_casted$`0.5_2_0.5` - buff_casted$`0.5_4_0.5`) # %>% dichotomize()
+buff_casted$alpha_effect <-  (buff_casted$`0.7_4_0.5` - buff_casted$`0.5_4_0.5`) # %>% dichotomize()
+
+
+limits = c(-.20, .20)
+
+ggplot(buff_casted, aes(x = x2, y = p2, fill= gamma_effect)) + 
+  scale_fill_gradient(low = "blue", high = "yellow") +
+  xlim(10, 300) +
+  scale_y_reverse(limits=c(1,0.1)) +
+  geom_tile() + 
+  geom_line(data = buff_casted, aes(x = x2,  y=10/x2, colour = "red")) 
+
+
+
+buff_casted$y <- buff_casted$beta_effect
+ggplot(buff_casted, aes(x = x2, y = p2, fill = beta_effect)) + 
+  scale_fill_gradient(low = "blue", high = "yellow") +
+  #geom_contour_filled(bins = 20) +
+  #geom_contour() + 
+  xlim(10, 300) +
+  scale_y_reverse(limits=c(1,0.1)) +
+  geom_tile() + 
+  geom_line(data = buff_casted, aes(x = x2,  y=10/x2, colour = "red"))  
+  #geom_text_contour(aes(z = y))
+
+buff_casted$y <- buff_casted$alpha_effect
+ggplot(buff_casted, aes(x = x2, y = p2, fill = alpha_effect)) + 
+  scale_fill_gradient(low = "blue", high = "yellow") +
+  #geom_contour_filled(bins = 20) +
+  #geom_contour() + 
+  xlim(10, 300) +
+  scale_y_reverse(limits=c(1,0.1)) +
+  geom_tile() + 
+  geom_line(data = buff_casted, aes(x = x2,  y=10/x2, colour = "red"))  
+
+
+
+x <- buff_df %>% filter(gamma %in% c(.5,.7), beta %in% c(2, 4), alpha %in% c(.5,.7), p2 == .5)
+
+x$line_label <- NA
+x$line_label[x$alpha == .5 & x$gamma == .5 & x$beta == 4] <- "self"
+x$line_label[x$alpha == .5 & x$gamma == .5 & x$beta == 2] <- "beta-other"
+x$line_label[x$alpha == .5 & x$gamma == .7 & x$beta == 4] <- "gamma-other"
+x$line_label[x$alpha == .7 & x$gamma == .5 & x$beta == 4] <- "alpha-other"
+x <- x %>% filter(!is.na(line_label))
+x$line_label <- x$line_label %>% as.factor()
+
+fig2 <- ggplot(x, aes(x = x2, y = y, group = line_label, color = line_label)) +
+  geom_line(size = 2) +
+  ylab("Preference to the certain option") +
+  xlab("Monetary outcome of the uncertain option") +
+  scale_color_discrete(name = "Model", labels = c(expression(alpha*-other), expression(beta*-other), expression(gamma*-other), "self")) +
+  geom_vline(xintercept = 20, linetype="dotted",  color = "black", size=1) +
+  theme_classic()
+
+ggsave("~/Desktop/fig2.png", width = 6, height = 5)
+
+
+
+
+buff_df <- expand.grid(
+  x = seq(0, 100, by = .01),
+  alpha = c(0.5, 0.7))
+buff_df$subjective_x <- buff_df$x^buff_df$alpha
+gg_alpha <- ggplot(buff_df, aes(x = x, y = subjective_x, group = alpha, color = as.factor(alpha))) +
+  geom_line(size=1)+
+  labs(color=expression(alpha))  +
+  ylab("u(x)") + 
+  xlab("x") + 
+  theme_classic()
+
+
+buff_df <- expand.grid(
+  x = seq(0, 1, by = .01),
+  gamma = c(0.5, 0.7))
+buff_df$subjective_x <- pi_vect(buff_df$x, buff_df$gamma)
+gg_gamma <- ggplot(buff_df, aes(x = x, y = subjective_x, group = gamma, color = as.factor(gamma))) +
+  geom_line(size=1) +
+  labs(color=expression(gamma))  +
+  ylab(expression(pi*(p))) + 
+  xlab("p") + 
+  xlim(0, 1) +
+  theme_classic()
+
+
+logit <- function(x, beta) {
+  1/(1+exp(-beta*x))
+}
+logit_vect <- Vectorize(logit)
+
+buff_df <- expand.grid(
+  x = seq(-5, 5, by = .01),
+  beta = c(2, 4))
+buff_df$subjective_x <- logit_vect(buff_df$x, buff_df$beta)
+gg_beta <- ggplot(buff_df, aes(x = x, y = subjective_x, group = beta, color = as.factor(beta))) +
+  geom_line(size=1) +
+  labs(color=expression(beta))  +
+  ylab("Probability of Choosing Option 1") + 
+  xlab(expression(paste("u(x"[1],")", pi,"(p"[1],")", "- u(x"[2],")", pi,"(p"[2],")"))) +
+  theme_classic()
+
+
+fig1 <- ggarrange(gg_alpha, gg_gamma, gg_beta   , 
+          labels = c("A.", "C.", "B."),
+          ncol = 2, nrow = 3) 
+ggsave("~/Desktop/fig1.png", width = 8, height = 11)
+```
+
+
+# Parameter Estimation
+```{r}
+
+tbls_flat <- data.frame()
+for (tbl_name in names(tbls)) {
+
+  
+  current_df <- data.frame(round_index = 1:length(tbls[[tbl_name]]$b$t[,1]))
+  current_df$n_mins <-tbls[[tbl_name]]$b$t[,1]
+  current_df$MSE <-tbls[[tbl_name]]$b$t[,2]
+  current_df$alpha <-tbls[[tbl_name]]$b$t[,3]
+  current_df$beta <-tbls[[tbl_name]]$b$t[,4]
+  current_df$gamma <-tbls[[tbl_name]]$b$t[,5]
+  current_df$tbl_name <-  tbl_name
+  current_df$label <-  tbls[[tbl_name]]$label
+  current_df$filter <-  tbls[[tbl_name]]$filter
+  
+  tbls_flat <- bind_rows(tbls_flat, current_df)
+  
+}
+
+tbls_flat$study <- tbls_flat$tbl_name %>% substr(1,4) %>% 
+  dplyr::recode(tbl1 = "Study 1",
+                tbl2 = "Study 2",
+                tbl3 = "Study 3",
+                tbl4 = "Study 4")
+
+tbls_flat$recipient <- tbls_flat$tbl_name %>% substr(5,5) %>% 
+  dplyr::recode(a = "self", b = "other")
+
+
+tbls_flat_melted <- tbls_flat %>% select(round_index, study, recipient, alpha, beta, gamma, MSE) %>%
+  melt(id.vars = c("round_index", "study", "recipient"))
+
+
+x <- tbls_flat_melted %>% group_by(study, recipient, variable) %>%
+  summarise(mean_value = mean(value),
+            sd_value = sd(value))
+p_vals <- expand.grid(list(study = unique(x$study), 
+                           variable = unique(x$variable)))
+
+get_p_values <- function(vec1, vec2, n_rounds) {
+  sample_1 <- sample(vec1, n_rounds, replace = TRUE)
+  sample_2 <- sample(vec2, n_rounds, replace = TRUE)
+  output <- list(vec1_greater = (sum(sample_1 > sample_2)/n_rounds),
+                vec2_greater = (sum(sample_1 < sample_2)/n_rounds),
+                vec1_equal_vec2 = (sum(sample_1 == sample_2)/n_rounds))
+}
+
+
+#a <- get_p_values(c(1,2), c(1,1,3), 1000)
+
+p_vals$self_greater <- NA
+p_vals$other_greater <- NA
+p_vals$equal <- NA
+for (i in 1:nrow(p_vals)) {
+  df <- tbls_flat_melted %>% filter(study == p_vals$study[i], variable == p_vals$variable[i])
+  vec1 <- df %>% filter(recipient == "self") %>% select(value) %>% as.vector() %>% unlist() %>% unname()
+  vec2 <- df %>% filter(recipient == "other") %>% select(value) %>% as.vector() %>% unlist() %>% unname()
+  output <- get_p_values(vec1, vec2, 100000)
+  p_vals$self_greater[i] <- output$vec1_greater
+  p_vals$other_greater[i] <- output$vec2_greater
+  p_vals$equal[i] <- output$vec1_equal_vec2
+}
+
+
+p_vals$sign_star <- ""
+p_vals$sign_star <- ifelse((p_vals$self_greater > 0.95) |(p_vals$self_greater > 0.95), 
+                           "*", p_vals$sign_star)
+
+p_vals$sign_star <- ifelse((p_vals$self_greater > 0.99) |(p_vals$self_greater > 0.99), 
+                           "**", p_vals$sign_star)
+
+p_vals$sign_star <- ifelse((p_vals$self_greater > 0.999) |(p_vals$self_greater > 0.999), 
+                           "***", p_vals$sign_star)
+x <- merge(x, 
+           p_vals %>% select(sign_star, variable, study),
+           by = c("variable", "study"), all.x = TRUE, all.y = FALSE)
+
+x$sign_star[x$recipient == "other"] <- ""
+
+
+facet_labels <- c(
+                    `alpha` = expression(alpha),
+                    `beta` = expression(beta),
+                    `gamma` = expression(gamma)
+                    )
+
+fig7 <- x %>% filter(variable != "MSE") %>% ggplot(aes(y = mean_value, x =  study, fill = recipient, label = sign_star)) +
+  geom_bar(stat = "identity", position = "dodge", color="black") + 
+  geom_errorbar(aes(ymin=mean_value-sd_value, ymax=mean_value+sd_value), width=.2,
+                 position=position_dodge(.9)) +
+  geom_text(size = 5, hjust=0.8, vjust=-.5) +
+  labs(title="", x="Study", y = "Estimate", fill = "Recipient") +
+  theme_classic() +
+  scale_fill_manual(values=c('#999999','#E69F00')) +
+  facet_grid(rows = vars(variable), scales="free", labeller = as_labeller(facet_labels))
+
+ggsave("~/Desktop/fig7.png", height = 12, width = 6)
+```
+
+
