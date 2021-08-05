@@ -8,3 +8,7 @@ This repo contains data and script files for "Social Expected Utility: Indiffere
 * SM.Rmd - R markdown file for creating the supplementary materials file. 
 * SEU_paper_analyses.Rmd - statistical analyses and figure generation scripts. 
 * util.R - additional functions for running the R scripts. 
+
+## Cross-references
+https://osf.io/kr8pa/
+https://github.com/TRI-MAC/SEU/
