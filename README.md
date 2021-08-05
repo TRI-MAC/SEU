@@ -4,7 +4,7 @@ This repo contains data and script files for "Social Expected Utility: Indiffere
 
 
 ## File Description
-* Study1.csv …  Study3.csv - data from the four analysis. 
+* Study1.csv …  Study4.csv - choice data from the four studies analyzed in the paper. 
 * SM.Rmd - R markdown file for creating the supplementary materials file. 
 * SEU_paper_analyses.Rmd - statistical analyses and figure generation scripts. 
 * util.R - additional functions for running the R scripts. 
