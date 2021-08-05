@@ -1,6 +1,6 @@
 # SEU
 
-This repo contains data and script files for "Social Expected Utility: Indifference to Others Can Influence Risk Preferences". 
+This reposiotry contains data and script files for "Social Expected Utility: Indifference to Others Can Influence Risk Preferences". 
 
 
 ## File Description
